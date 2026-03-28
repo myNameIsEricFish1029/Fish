@@ -190,6 +190,32 @@ main { flex: 1; display: flex; overflow: hidden; }
   z-index:9999; pointer-events:none;
 }
 .toast.show { transform:translateY(0); opacity:1; }
+
+/* ── Export Preview Modal ── */
+.export-overlay {
+  position:fixed; inset:0; z-index:3000;
+  background:rgba(0,0,0,.92); backdrop-filter:blur(6px);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:16px; padding:20px;
+}
+.export-overlay img {
+  max-width:100%; max-height:70vh; border-radius:10px;
+  box-shadow:0 8px 40px rgba(0,0,0,.8);
+}
+.export-tip {
+  font-size:13px; color:rgba(255,255,255,.7); text-align:center; line-height:1.7;
+}
+.export-tip strong { color:var(--gold); }
+.export-actions { display:flex; gap:10px; }
+.exp-btn {
+  padding:11px 22px; border-radius:10px; border:none;
+  font-family:'Outfit',sans-serif; font-size:14px; font-weight:600;
+  cursor:pointer; transition:all 0.15s;
+}
+.exp-btn-save { background:var(--gold); color:#111; }
+.exp-btn-save:hover { background:#ffd54f; }
+.exp-btn-close { background:var(--surface2); border:1px solid var(--border); color:var(--text-dim); }
+.exp-btn-close:hover { background:var(--border); }
 ::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:var(--bg); }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
@@ -289,7 +315,7 @@ main { flex: 1; display: flex; overflow: hidden; }
     <circle cx="16" cy="16" r="4.5" fill="#f5c842"/>
     <circle cx="16" cy="16" r="2.5" fill="#0f0f13"/>
   </svg>
-  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v1.2</span></div>
+  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v1.0_EricFish</span></div>
   <button class="sidebar-toggle" onclick="toggleSidebar()" title="設定">☰</button>
 </header>
 
@@ -372,6 +398,16 @@ main { flex: 1; display: flex; overflow: hidden; }
 
 <input type="file" id="file-input" accept="image/*" multiple>
 <div class="toast" id="toast"></div>
+
+<!-- ── Export Preview ── -->
+<div class="export-overlay" id="export-overlay" style="display:none">
+  <img id="export-img" src="" alt="拼貼圖預覽">
+  <div class="export-tip" id="export-tip"></div>
+  <div class="export-actions">
+    <button class="exp-btn exp-btn-save" id="exp-dl-btn">⬇ 下載檔案</button>
+    <button class="exp-btn exp-btn-close" onclick="closeExportPreview()">✕ 關閉</button>
+  </div>
+</div>
 
 <!-- ── Text Edit Modal ── -->
 <div class="modal-overlay" id="text-modal" style="display:none">
@@ -758,13 +794,37 @@ function doExport() {
     }
   });
 
-  const mime=fmt==='png'?'image/png':'image/jpeg';
-  canvas.toBlob(blob=>{
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url; a.download=`collage_${cols}x${rows}.${fmt==='jpeg'?'jpg':'png'}`; a.click();
-    URL.revokeObjectURL(url); showToast('✓ 拼貼圖匯出完成！');
-  }, mime, fmt==='jpeg'?0.95:1);
+  const mime = fmt==='png' ? 'image/png' : 'image/jpeg';
+  const dataUrl = canvas.toDataURL(mime, fmt==='jpeg' ? 0.95 : 1);
+  const filename = `collage_${cols}x${rows}.${fmt==='jpeg'?'jpg':'png'}`;
+
+  // Show preview modal
+  const overlay = document.getElementById('export-overlay');
+  const img     = document.getElementById('export-img');
+  const tip     = document.getElementById('export-tip');
+  const dlBtn   = document.getElementById('exp-dl-btn');
+
+  img.src = dataUrl;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isIOS) {
+    tip.innerHTML = `📱 iPhone：<strong>長按圖片</strong> → 「儲存到照片」<br>即可存入相簿，不需要存成檔案！`;
+    dlBtn.style.display = 'none'; // hide download btn on iOS, long-press is the way
+  } else {
+    tip.innerHTML = `🖥 電腦：點下方按鈕下載，或<strong>右鍵圖片→另存圖片</strong>`;
+    dlBtn.style.display = '';
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = dataUrl; a.download = filename; a.click();
+    };
+  }
+
+  overlay.style.display = 'flex';
+}
+
+function closeExportPreview() {
+  document.getElementById('export-overlay').style.display = 'none';
+  document.getElementById('export-img').src = '';
 }
 
 function wrapText(ctx, text, maxW) {
