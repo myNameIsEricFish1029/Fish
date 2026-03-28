@@ -29,11 +29,49 @@ header {
 .logo span { display: block; font-size: 7px; color: var(--text-dim); margin-top: 3px; letter-spacing: 1px; }
 main { flex: 1; display: flex; overflow: hidden; }
 
+/* Sidebar toggle btn in header */
+.sidebar-toggle {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); cursor: pointer;
+  width: 36px; height: 36px; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0; margin-left: auto;
+}
+.sidebar-toggle:hover { background: var(--border); color: var(--gold); }
+
 /* Sidebar */
 .sidebar {
   width: 270px; min-width: 270px; background: var(--surface);
   border-right: 1px solid var(--border); padding: 20px 16px;
   display: flex; flex-direction: column; gap: 18px; overflow-y: auto;
+  transition: transform 0.28s cubic-bezier(.4,0,.2,1), width 0.28s, min-width 0.28s, padding 0.28s;
+  flex-shrink: 0;
+}
+.sidebar.collapsed {
+  transform: translateX(-100%);
+  width: 0; min-width: 0; padding: 0;
+  overflow: hidden; border-right: none;
+}
+
+/* Mobile overlay behind sidebar */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(2px);
+}
+.sidebar-overlay.show { display: block; }
+
+/* Mobile: sidebar floats over canvas */
+@media (max-width: 600px) {
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 600;
+    width: 82vw; min-width: 0; max-width: 320px;
+    transform: translateX(-105%);
+    padding: 20px 16px; border-right: 1px solid var(--border);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar.collapsed { transform: translateX(-105%); width: 82vw; min-width: 0; padding: 20px 16px; overflow-y: auto; border-right: 1px solid var(--border); }
 }
 .sec-title {
   font-size: 9px; font-weight: 700; letter-spacing: 2.5px;
@@ -99,7 +137,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 /* Canvas Area */
 .canvas-area {
   flex:1; display:flex; align-items:flex-start; justify-content:center;
-  padding:28px; overflow:auto;
+  padding:16px; overflow:auto;
   background:
     radial-gradient(ellipse at 15% 85%, rgba(245,200,66,.05) 0%, transparent 55%),
     radial-gradient(ellipse at 85% 15%, rgba(100,80,200,.04) 0%, transparent 55%),
@@ -251,11 +289,13 @@ main { flex: 1; display: flex; overflow: hidden; }
     <circle cx="16" cy="16" r="4.5" fill="#f5c842"/>
     <circle cx="16" cy="16" r="2.5" fill="#0f0f13"/>
   </svg>
-  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v1.0</span></div>
+  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v1.2</span></div>
+  <button class="sidebar-toggle" onclick="toggleSidebar()" title="設定">☰</button>
 </header>
 
 <main>
-  <aside class="sidebar">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
     <div>
       <div class="sec-title">📐 格線設定 Grid Size</div>
       <div class="grid-controls">
@@ -399,8 +439,19 @@ let ratioW = 9, ratioH = 20;
 let editIdx = null;
 let curAlign = 'center';
 
-const CELL_W = 160;
-const getCellH = () => Math.round(CELL_W * ratioH / ratioW);
+const isMobile = () => window.innerWidth <= 600;
+
+// Dynamic cell width: fit all columns in available canvas area
+function getCellW() {
+  const canvas = document.querySelector('.canvas-area');
+  if (!canvas) return 160;
+  const pad = 32; // padding both sides
+  const gap = document.getElementById('show-gap')?.checked ? 4 : 0;
+  const available = canvas.clientWidth - pad - (cols - 1) * gap;
+  const w = Math.floor(available / cols);
+  return Math.max(80, Math.min(w, 300));
+}
+const getCellH = () => Math.round(getCellW() * ratioH / ratioW);
 const emptyCell = () => ({ type:'empty', img:null, src:null, text:'', fontSize:36, color:'#000000', align:'center', bgColor:'#ffffff' });
 
 const TXT_PRESETS = ['#000000','#222222','#ffffff','#e84855','#f5c842','#3b82f6','#22c55e','#f97316'];
@@ -417,15 +468,16 @@ function init() {
 // ── Render ────────────────────────────────────────────
 function renderGrid() {
   const gap = document.getElementById('show-gap').checked ? 4 : 0;
+  const cellW = getCellW();
   const cellH = getCellH();
   const g = document.getElementById('collage-grid');
-  g.style.cssText = `grid-template-columns:repeat(${cols},${CELL_W}px);grid-template-rows:repeat(${rows},${cellH}px);gap:${gap}px;padding:${gap}px;`;
+  g.style.cssText = `display:grid;grid-template-columns:repeat(${cols},${cellW}px);grid-template-rows:repeat(${rows},${cellH}px);gap:${gap}px;padding:${gap}px;border-radius:var(--radius);overflow:hidden;box-shadow:0 10px 60px rgba(0,0,0,.6),0 0 0 1px var(--border);flex-shrink:0;`;
   g.innerHTML = '';
 
   cells.forEach((c, i) => {
     const el = document.createElement('div');
     el.dataset.i = i;
-    el.style.width = CELL_W+'px'; el.style.height = cellH+'px';
+    el.style.width = cellW+'px'; el.style.height = cellH+'px';
 
     if (c.type === 'image') {
       el.className = 'cell has-image';
@@ -440,7 +492,7 @@ function renderGrid() {
       el.style.background = c.bgColor;
       const pv = document.createElement('div');
       pv.className = 'cell-text-preview';
-      const scale = CELL_W / 500;
+      const scale = getCellW() / 500;
       pv.style.cssText = `font-size:${Math.max(7, Math.round(c.fontSize*scale))}px;color:${c.color};text-align:${c.align};font-family:'Times New Roman','標楷體','DFKai-SB',serif;`;
       pv.textContent = c.text;
       el.appendChild(pv);
@@ -747,6 +799,30 @@ function showToast(msg) {
   clearTimeout(toastTmr); toastTmr=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
+// ── Sidebar Toggle ────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (isMobile()) {
+    const isOpen = sb.classList.contains('open');
+    sb.classList.toggle('open', !isOpen);
+    ov.classList.toggle('show', !isOpen);
+  } else {
+    sb.classList.toggle('collapsed');
+    setTimeout(renderGrid, 300);
+  }
+}
+document.getElementById('file-input').addEventListener('change', function() {
+  if (isMobile()) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('show');
+  }
+}, true);
+window.addEventListener('resize', () => {
+  clearTimeout(window._rTmr);
+  window._rTmr = setTimeout(renderGrid, 120);
+});
+
 // Keyboard
 document.addEventListener('keydown', e => {
   if (e.key==='Escape') { closeModal(); closePopup(); }
@@ -755,6 +831,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('dragover', e=>e.preventDefault());
 document.addEventListener('drop', e=>{ if(!e.target.closest('.cell')) e.preventDefault(); });
 
+// Boot
 init();
 </script>
 </body>
