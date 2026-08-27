@@ -135,6 +135,8 @@ main { flex: 1; display: flex; overflow: hidden; }
 .btn-export:hover { background:#ffd54f; transform:translateY(-1px); box-shadow:0 4px 18px rgba(245,200,66,.35); }
 .btn-clear { background:transparent; border:1px solid var(--border); color:var(--text-dim); }
 .btn-clear:hover { background:rgba(232,72,85,.12); border-color:var(--red); color:var(--red); }
+.btn-wmonly { background:transparent; border:1px solid #3b5bdb; color:#7c94f5; }
+.btn-wmonly:hover { background:rgba(59,91,219,.15); color:#a6b8ff; }
 
 /* Canvas Area */
 .canvas-area {
@@ -197,18 +199,24 @@ main { flex: 1; display: flex; overflow: hidden; }
 .export-overlay {
   position:fixed; inset:0; z-index:3000;
   background:rgba(0,0,0,.92); backdrop-filter:blur(6px);
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:16px; padding:20px;
+  display:flex; flex-direction:column; align-items:center;
+  gap:16px; padding:20px; padding-top:max(20px, env(safe-area-inset-top));
+  padding-bottom:max(20px, env(safe-area-inset-bottom));
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
 }
 .export-overlay img {
-  max-width:100%; max-height:70vh; border-radius:10px;
-  box-shadow:0 8px 40px rgba(0,0,0,.8);
+  max-width:100%; max-height:55vh; border-radius:10px;
+  box-shadow:0 8px 40px rgba(0,0,0,.8); flex-shrink:0;
 }
 .export-tip {
   font-size:13px; color:rgba(255,255,255,.7); text-align:center; line-height:1.7;
+  flex-shrink:0;
 }
 .export-tip strong { color:var(--gold); }
-.export-actions { display:flex; gap:10px; }
+.export-actions {
+  display:flex; gap:10px; flex-shrink:0;
+  margin-top:4px; margin-bottom:8px;
+}
 .exp-btn {
   padding:11px 22px; border-radius:10px; border:none;
   font-family:'Outfit',sans-serif; font-size:14px; font-weight:600;
@@ -255,6 +263,15 @@ main { flex: 1; display: flex; overflow: hidden; }
 .wm-pos-btn:hover { background: var(--border); color: var(--text); }
 .wm-pos-btn.active { background: rgba(245,200,66,.2); color: var(--gold); border-color: var(--gold-dim); }
 .wm-diag-btn { height: 30px; padding: 0 6px; font-family: 'Outfit', sans-serif; font-weight: 600; }
+.wm-hint { font-size: 10px; color: var(--text-dim); }
+.wm-reset-btn {
+  padding: 8px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim);
+  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; display: flex;
+  align-items: center; justify-content: center; gap: 5px;
+}
+.wm-reset-btn:hover { background: rgba(232,72,85,.15); border-color: var(--red); color: var(--red); }
 ::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:var(--bg); }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
@@ -426,6 +443,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 
     <div class="action-btns">
       <button class="btn btn-export" onclick="doExport()">⬇ 匯出拼貼圖 Export</button>
+      <button class="btn btn-wmonly" onclick="document.getElementById('wm-only-input').click()">🏷 只加浮水印（上傳完成圖）</button>
       <button class="btn btn-clear" onclick="clearAll()">🗑 清除全部 Clear All</button>
     </div>
   </aside>
@@ -436,6 +454,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 </main>
 
 <input type="file" id="file-input" accept="image/*" multiple>
+<input type="file" id="wm-only-input" accept="image/*" style="display:none">
 <div class="toast" id="toast"></div>
 
 <!-- ── Export Preview ── -->
@@ -477,20 +496,22 @@ main { flex: 1; display: flex; overflow: hidden; }
       <label>位置</label>
       <div style="display:flex;flex-direction:column;gap:6px;">
         <div class="wm-pos-grid" id="wm-pos-grid">
-          <button class="wm-pos-btn" data-p="tl" onclick="setWmPos('tl')">↖</button>
-          <button class="wm-pos-btn" data-p="tc" onclick="setWmPos('tc')">↑</button>
-          <button class="wm-pos-btn" data-p="tr" onclick="setWmPos('tr')">↗</button>
-          <button class="wm-pos-btn" data-p="ml" onclick="setWmPos('ml')">←</button>
-          <button class="wm-pos-btn" data-p="mc" onclick="setWmPos('mc')">●</button>
-          <button class="wm-pos-btn" data-p="mr" onclick="setWmPos('mr')">→</button>
-          <button class="wm-pos-btn active" data-p="br" onclick="setWmPos('br')">↘</button>
-          <button class="wm-pos-btn" data-p="bc" onclick="setWmPos('bc')">↓</button>
-          <button class="wm-pos-btn" data-p="bl" onclick="setWmPos('bl')">↙</button>
+          <button class="wm-pos-btn" data-p="tl" onclick="toggleWmPos('tl')">↖</button>
+          <button class="wm-pos-btn" data-p="tc" onclick="toggleWmPos('tc')">↑</button>
+          <button class="wm-pos-btn" data-p="tr" onclick="toggleWmPos('tr')">↗</button>
+          <button class="wm-pos-btn" data-p="ml" onclick="toggleWmPos('ml')">←</button>
+          <button class="wm-pos-btn" data-p="mc" onclick="toggleWmPos('mc')">●</button>
+          <button class="wm-pos-btn" data-p="mr" onclick="toggleWmPos('mr')">→</button>
+          <button class="wm-pos-btn" data-p="bl" onclick="toggleWmPos('bl')">↙</button>
+          <button class="wm-pos-btn" data-p="bc" onclick="toggleWmPos('bc')">↓</button>
+          <button class="wm-pos-btn active" data-p="br" onclick="toggleWmPos('br')">↘</button>
         </div>
         <div style="display:flex;gap:4px;">
-          <button class="wm-pos-btn wm-diag-btn" data-p="diag-tr" onclick="setWmPos('diag-tr')" style="flex:1;font-size:11px;">╱ 平鋪 ↗</button>
-          <button class="wm-pos-btn wm-diag-btn" data-p="diag-tl" onclick="setWmPos('diag-tl')" style="flex:1;font-size:11px;">╲ 平鋪 ↘</button>
+          <button class="wm-pos-btn wm-diag-btn" data-p="diag-tr" onclick="toggleWmPos('diag-tr')" style="flex:1;font-size:11px;">╱ 平鋪 ↗</button>
+          <button class="wm-pos-btn wm-diag-btn" data-p="diag-tl" onclick="toggleWmPos('diag-tl')" style="flex:1;font-size:11px;">╲ 平鋪 ↘</button>
         </div>
+        <div class="wm-hint">💡 可複選多個位置，再點一次可取消</div>
+        <button class="wm-reset-btn" onclick="resetWatermarks()">↺ 重置所有浮水印</button>
       </div>
     </div>
   </div>
@@ -892,30 +913,59 @@ function doExport() {
   const dataUrl = canvas.toDataURL(mime, fmt==='jpeg' ? 0.95 : 1);
   const filename = `collage_${cols}x${rows}.${fmt==='jpeg'?'jpg':'png'}`;
 
-  // Show preview modal
+  showExportPreview(dataUrl, filename);
+}
+
+// ── Shared export-preview setup (used by collage export AND watermark-only upload) ──
+function showExportPreview(dataUrl, filename) {
   const overlay = document.getElementById('export-overlay');
   const img     = document.getElementById('export-img');
   const tip     = document.getElementById('export-tip');
   const dlBtn   = document.getElementById('exp-dl-btn');
 
   img.src = dataUrl;
-  window._baseDataUrl = dataUrl;  // keep original for watermark
+  window._baseDataUrl = dataUrl;  // keep original (auto-sized to its own W/H) for watermark
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   if (isIOS) {
     tip.innerHTML = `📱 iPhone：<strong>長按圖片</strong> → 「儲存到照片」<br>即可存入相簿，不需要存成檔案！`;
-    dlBtn.style.display = 'none'; // hide download btn on iOS, long-press is the way
+    dlBtn.style.display = 'none';
   } else {
     tip.innerHTML = `🖥 電腦：點下方按鈕下載，或<strong>右鍵圖片→另存圖片</strong>`;
     dlBtn.style.display = '';
     dlBtn.onclick = () => {
+      // always download whatever is currently shown (base or watermarked)
+      const currentSrc = document.getElementById('export-img').src;
+      const isPng = currentSrc.startsWith('data:image/png');
+      const finalName = filename.replace(/\.\w+$/, isPng ? '.png' : '.jpg');
       const a = document.createElement('a');
-      a.href = dataUrl; a.download = filename; a.click();
+      a.href = currentSrc; a.download = finalName; a.click();
     };
   }
 
   overlay.style.display = 'flex';
 }
+
+// ── Watermark-only mode: upload an already-finished image, auto-detect its size ──
+document.getElementById('wm-only-input').addEventListener('change', function() {
+  const file = this.files[0];
+  this.value = '';
+  if (!file || !file.type.startsWith('image/')) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const ext = file.type === 'image/jpeg' ? 'jpg' : 'png';
+    showExportPreview(dataUrl, `watermarked.${ext}`);
+    // jump straight into the watermark panel since that's the whole point here
+    const panel = document.getElementById('wm-panel');
+    const btn   = document.getElementById('exp-wm-btn');
+    panel.style.display = 'flex';
+    btn.classList.add('active');
+    setTimeout(() => document.getElementById('wm-text').focus(), 150);
+  };
+  reader.readAsDataURL(file);
+});
 
 function closeExportPreview() {
   document.getElementById('export-overlay').style.display = 'none';
@@ -923,10 +973,13 @@ function closeExportPreview() {
   document.getElementById('wm-panel').style.display = 'none';
   document.getElementById('exp-wm-btn').classList.remove('active');
   window._baseDataUrl = null;
+  wmPositions = new Set(['br']);
+  document.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.p === 'br'));
+  document.getElementById('wm-text').value = '';
 }
 
 // ── Watermark ─────────────────────────────────────────
-let wmPos = 'br';
+let wmPositions = new Set(['br']);  // multi-select, default bottom-right
 
 function toggleWmPanel() {
   const panel = document.getElementById('wm-panel');
@@ -936,15 +989,22 @@ function toggleWmPanel() {
   btn.classList.toggle('active', !shown);
   if (!shown && document.getElementById('wm-text').value) applyWatermark();
   if (shown) {
-    // restore base image when hiding
     document.getElementById('export-img').src = window._baseDataUrl;
   }
 }
 
-function setWmPos(p) {
-  wmPos = p;
-  document.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.p === p));
+function toggleWmPos(p) {
+  if (wmPositions.has(p)) wmPositions.delete(p);
+  else wmPositions.add(p);
+  document.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', wmPositions.has(b.dataset.p)));
   applyWatermark();
+}
+
+function resetWatermarks() {
+  wmPositions.clear();
+  document.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.remove('active'));
+  applyWatermark();
+  showToast('↺ 已重置所有浮水印');
 }
 
 function setWmColor(c) {
@@ -953,6 +1013,45 @@ function setWmColor(c) {
   document.getElementById('wm-color').parentElement.style.borderColor = c === '#ffffff' ? '#666' : c;
   document.querySelectorAll('.wm-clr-btn').forEach(b => b.classList.toggle('active', b.dataset.c === c));
   applyWatermark();
+}
+
+function drawFixedWatermark(ctx, W, H, pos, text, size) {
+  const pad = Math.round(Math.max(W, H) * 0.03);
+  const tw  = ctx.measureText(text).width;
+  const posMap = {
+    tl: [pad + tw/2,     pad + size/2],
+    tc: [W/2,            pad + size/2],
+    tr: [W-pad-tw/2,     pad + size/2],
+    ml: [pad + tw/2,     H/2],
+    mc: [W/2,            H/2],
+    mr: [W-pad-tw/2,     H/2],
+    bl: [pad + tw/2,     H-pad-size/2],
+    bc: [W/2,            H-pad-size/2],
+    br: [W-pad-tw/2,     H-pad-size/2],
+  };
+  const [tx, ty] = posMap[pos] || posMap.br;
+  ctx.fillText(text, tx, ty);
+}
+
+function drawDiagWatermark(ctx, W, H, dir, text, size) {
+  const angle = dir === 'diag-tr' ? -Math.PI / 4 : Math.PI / 4;
+  const diagLen = Math.sqrt(W * W + H * H);
+  const tw = ctx.measureText(text).width;
+  const colStep = tw + Math.max(size * 2, 60);
+  const rowStep = size * 3.5;
+  const numCols = Math.ceil(diagLen / colStep) + 4;
+  const numRows = Math.ceil(diagLen / rowStep) + 4;
+
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate(angle);
+  for (let r = -numRows; r <= numRows; r++) {
+    const offset = (r % 2 === 0) ? 0 : colStep / 2;
+    for (let c = -numCols; c <= numCols; c++) {
+      ctx.fillText(text, c * colStep + offset, r * rowStep);
+    }
+  }
+  ctx.restore();
 }
 
 function applyWatermark() {
@@ -965,7 +1064,7 @@ function applyWatermark() {
   document.getElementById('wm-opacity-val').textContent = Math.round(opacity * 100) + '%';
 
   if (!window._baseDataUrl) return;
-  if (!text) { document.getElementById('export-img').src = window._baseDataUrl; return; }
+  if (!text || wmPositions.size === 0) { document.getElementById('export-img').src = window._baseDataUrl; return; }
 
   const base = new Image();
   base.onload = () => {
@@ -976,53 +1075,19 @@ function applyWatermark() {
     ctx.drawImage(base, 0, 0);
 
     const W = cv.width, H = cv.height;
-    ctx.fillStyle  = color;
-    ctx.font       = `bold ${size}px 'Times New Roman','標楷體','DFKai-SB',serif`;
+    ctx.fillStyle    = color;
+    ctx.font         = `bold ${size}px 'Times New Roman','標楷體','DFKai-SB',serif`;
     ctx.textBaseline = 'middle';
-    ctx.textAlign  = 'center';
+    ctx.textAlign    = 'center';
+    ctx.globalAlpha  = opacity;
 
-    if (wmPos === 'diag-tr' || wmPos === 'diag-tl') {
-      // ── Diagonal tile mode ──────────────────────────
-      const angle = wmPos === 'diag-tr' ? -Math.PI / 4 : Math.PI / 4;
-      const diagLen = Math.sqrt(W * W + H * H);
-      const tw = ctx.measureText(text).width;
-      const colStep = tw + Math.max(size * 2, 60);  // horizontal spacing between copies
-      const rowStep = size * 3.5;                    // vertical spacing between rows
-      const numCols = Math.ceil(diagLen / colStep) + 4;
-      const numRows = Math.ceil(diagLen / rowStep) + 4;
-
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.translate(W / 2, H / 2);
-      ctx.rotate(angle);
-      for (let r = -numRows; r <= numRows; r++) {
-        // offset every other row for a staggered look
-        const offset = (r % 2 === 0) ? 0 : colStep / 2;
-        for (let c = -numCols; c <= numCols; c++) {
-          ctx.fillText(text, c * colStep + offset, r * rowStep);
-        }
+    wmPositions.forEach(pos => {
+      if (pos === 'diag-tr' || pos === 'diag-tl') {
+        drawDiagWatermark(ctx, W, H, pos, text, size);
+      } else {
+        drawFixedWatermark(ctx, W, H, pos, text, size);
       }
-      ctx.restore();
-
-    } else {
-      // ── Fixed position mode ─────────────────────────
-      ctx.globalAlpha = opacity;
-      const pad = Math.round(Math.max(W, H) * 0.03);
-      const tw  = ctx.measureText(text).width;
-      const posMap = {
-        tl: [pad + tw/2,     pad + size/2],
-        tc: [W/2,            pad + size/2],
-        tr: [W-pad-tw/2,     pad + size/2],
-        ml: [pad + tw/2,     H/2],
-        mc: [W/2,            H/2],
-        mr: [W-pad-tw/2,     H/2],
-        bl: [pad + tw/2,     H-pad-size/2],
-        bc: [W/2,            H-pad-size/2],
-        br: [W-pad-tw/2,     H-pad-size/2],
-      };
-      const [tx, ty] = posMap[wmPos] || posMap.br;
-      ctx.fillText(text, tx, ty);
-    }
+    });
 
     document.getElementById('export-img').src = cv.toDataURL('image/png');
   };
