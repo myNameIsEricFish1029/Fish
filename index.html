@@ -161,6 +161,10 @@ main { flex: 1; display: flex; overflow: hidden; }
 }
 .cell:hover { border-color: var(--gold-dim); background: #2a2a3a; }
 .cell.drag-over { border-color: var(--gold) !important; background: rgba(245,200,66,.1) !important; }
+.cell.swap-selected, .edit-slot-btn.swap-selected {
+  outline: 3px solid var(--gold); outline-offset: -3px;
+  background: rgba(245,200,66,.22) !important;
+}
 .cell.has-image { border: none; cursor: grab; }
 .cell.has-image:active { cursor: grabbing; }
 .cell.has-text { border: 1px solid var(--border); cursor: pointer; }
@@ -423,7 +427,7 @@ main { flex: 1; display: flex; overflow: hidden; }
     <circle cx="16" cy="16" r="4.5" fill="#f5c842"/>
     <circle cx="16" cy="16" r="2.5" fill="#0f0f13"/>
   </svg>
-  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v2.0_Revision08/27</span></div>
+  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v1.2</span></div>
   <button class="sidebar-toggle" onclick="toggleSidebar()" title="設定">☰</button>
 </header>
 
@@ -449,6 +453,10 @@ main { flex: 1; display: flex; overflow: hidden; }
       <div class="gap-row" style="margin-top:10px">
         <label class="toggle-sw"><input type="checkbox" id="show-gap"><span class="sl"></span></label>
         <span class="toggle-label">格間距 4px Cell gap</span>
+      </div>
+      <div class="gap-row" style="margin-top:6px">
+        <label class="toggle-sw"><input type="checkbox" id="swap-mode-toggle" onchange="toggleSwapMode()"><span class="sl"></span></label>
+        <span class="toggle-label">🔀 交換模式（點兩格互換，手機適用）</span>
       </div>
     </div>
 
@@ -524,6 +532,11 @@ main { flex: 1; display: flex; overflow: hidden; }
     <label>間距 Gap</label>
     <input type="number" id="edit-gap" min="0" max="100" value="0">
     <button class="edit-apply-btn" onclick="applyEditGrid()">套用格線</button>
+  </div>
+
+  <div class="gap-row">
+    <label class="toggle-sw"><input type="checkbox" id="edit-swap-toggle" onchange="toggleEditSwapMode()"><span class="sl"></span></label>
+    <span class="toggle-label" style="color:rgba(255,255,255,.7);">🔀 交換模式（點兩格互換，手機適用）</span>
   </div>
 
   <div class="edit-stage" id="edit-stage">
@@ -668,6 +681,8 @@ let cols = 4, rows = 2;
 let cells = [];
 let activeCellIdx = null;
 let dragSrc = null;
+let swapMode = false;
+let swapSelectIdx = null;
 let fmt = 'png';
 let ratioW = 9, ratioH = 20;
 let editIdx = null;
@@ -755,15 +770,47 @@ function renderGrid() {
     el.addEventListener('dragover',  e  => { e.preventDefault(); el.classList.add('drag-over'); });
     el.addEventListener('dragleave', ()  => el.classList.remove('drag-over'));
     el.addEventListener('drop',      e  => handleDrop(e, i));
+    if (swapMode) el.style.cursor = 'pointer';
     g.appendChild(el);
   });
+
+  // reapply pending swap selection highlight (survives re-renders triggered by resize etc.)
+  if (swapMode && swapSelectIdx !== null) {
+    g.querySelector(`[data-i="${swapSelectIdx}"]`)?.classList.add('swap-selected');
+  }
 }
 
 // ── Cell Click → popup for empty, modal for text ──────
 function onCellClick(i, el) {
+  if (swapMode) { handleSwapClick(i, el); return; }
   if (cells[i].type === 'image') { openReplaceUpload(i); return; }
   if (cells[i].type === 'text') { openModal(i); return; }
   showPopup(i, el);
+}
+
+// ── Tap-to-swap (mobile-friendly alternative to drag) ──
+function toggleSwapMode() {
+  swapMode = document.getElementById('swap-mode-toggle').checked;
+  swapSelectIdx = null;
+  renderGrid();
+  showToast(swapMode ? '🔀 交換模式已開啟，點兩格互換位置' : '交換模式已關閉');
+}
+
+function handleSwapClick(i, el) {
+  if (swapSelectIdx === null) {
+    swapSelectIdx = i;
+    el.classList.add('swap-selected');
+    return;
+  }
+  if (swapSelectIdx === i) {
+    el.classList.remove('swap-selected');
+    swapSelectIdx = null;
+    return;
+  }
+  [cells[swapSelectIdx], cells[i]] = [cells[i], cells[swapSelectIdx]];
+  swapSelectIdx = null;
+  renderGrid(); updateInfo();
+  showToast('↔ 已交換位置');
 }
 
 // Replace an already-filled image cell: single-file picker, keeps other cells untouched
@@ -1075,6 +1122,8 @@ let editCanvas = null;    // full-resolution canvas holding current pixel state
 let editCols = 4, editRows = 2, editGap = 0;
 let editActiveSlot = null;
 let editDragSrc = null;
+let editSwapMode = false;
+let editSwapSelectIdx = null;
 
 function openEditMode() {
   document.getElementById('edit-base-input').click();
@@ -1136,7 +1185,7 @@ function renderEditStage() {
       btn.className = 'edit-slot-btn';
       btn.innerHTML = `<span class="slot-num">${idx + 1}</span>`;
       btn.draggable = true;
-      btn.onclick = () => showEditSlotPopup(idx, btn);
+      btn.onclick = () => { if (editSwapMode) { handleEditSwapClick(idx, btn); } else { showEditSlotPopup(idx, btn); } };
       btn.addEventListener('dragstart', e => {
         editDragSrc = idx;
         setTimeout(() => btn.classList.add('drag-src'), 0);
@@ -1148,6 +1197,35 @@ function renderEditStage() {
       grid.appendChild(btn);
     }
   }
+
+  // reapply pending swap selection highlight (survives re-renders)
+  if (editSwapMode && editSwapSelectIdx !== null) {
+    grid.children[editSwapSelectIdx]?.classList.add('swap-selected');
+  }
+}
+
+// ── Tap-to-swap for edit mode (mobile-friendly alternative to drag) ──
+function toggleEditSwapMode() {
+  editSwapMode = document.getElementById('edit-swap-toggle').checked;
+  editSwapSelectIdx = null;
+  document.querySelectorAll('.edit-slot-btn').forEach(b => b.classList.remove('swap-selected'));
+  showToast(editSwapMode ? '🔀 交換模式已開啟，點兩格互換位置' : '交換模式已關閉');
+}
+
+function handleEditSwapClick(idx, btn) {
+  if (editSwapSelectIdx === null) {
+    editSwapSelectIdx = idx;
+    btn.classList.add('swap-selected');
+    return;
+  }
+  if (editSwapSelectIdx === idx) {
+    btn.classList.remove('swap-selected');
+    editSwapSelectIdx = null;
+    return;
+  }
+  editSwapSlots(editSwapSelectIdx, idx);
+  document.querySelectorAll('.edit-slot-btn').forEach(b => b.classList.remove('swap-selected'));
+  editSwapSelectIdx = null;
 }
 
 // Drop target: swap with dragged slot, or accept a dropped image file to replace this slot
@@ -1350,6 +1428,7 @@ function editExport() {
 function editReset() {
   editCanvas = null;
   editActiveSlot = null;
+  editSwapSelectIdx = null;
   document.getElementById('edit-preview-img').src = '';
   document.getElementById('edit-grid-overlay').innerHTML = '';
   document.getElementById('edit-base-input').click();
@@ -1357,6 +1436,7 @@ function editReset() {
 
 function closeEditMode() {
   document.getElementById('edit-overlay').style.display = 'none';
+  editSwapSelectIdx = null;
 }
 
 function closeExportPreview() {
