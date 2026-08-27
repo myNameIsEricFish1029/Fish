@@ -137,6 +137,8 @@ main { flex: 1; display: flex; overflow: hidden; }
 .btn-clear:hover { background:rgba(232,72,85,.12); border-color:var(--red); color:var(--red); }
 .btn-wmonly { background:transparent; border:1px solid #3b5bdb; color:#7c94f5; }
 .btn-wmonly:hover { background:rgba(59,91,219,.15); color:#a6b8ff; }
+.btn-editmode { background:transparent; border:1px solid #2ecc71; color:#6fe3a0; }
+.btn-editmode:hover { background:rgba(46,204,113,.15); color:#9bf0c0; }
 
 /* Canvas Area */
 .canvas-area {
@@ -227,6 +229,56 @@ main { flex: 1; display: flex; overflow: hidden; }
 .exp-btn-wm { background: #3b5bdb; color: #fff; }
 .exp-btn-wm:hover { background: #4c6ef5; }
 .exp-btn-wm.active { background: #2f4ac0; box-shadow: 0 0 0 2px #f5c842; }
+.exp-btn-close { background:var(--surface2); border:1px solid var(--border); color:var(--text-dim); }
+.exp-btn-close:hover { background:var(--border); }
+
+/* ── Edit Existing Collage Mode ── */
+.edit-overlay {
+  position:fixed; inset:0; z-index:3000;
+  background:rgba(0,0,0,.92); backdrop-filter:blur(6px);
+  display:flex; flex-direction:column; align-items:center;
+  gap:14px; padding:20px; padding-top:max(20px, env(safe-area-inset-top));
+  padding-bottom:max(20px, env(safe-area-inset-bottom));
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+}
+.edit-title { font-size:14px; font-weight:700; color:var(--gold); letter-spacing:1px; flex-shrink:0; }
+.edit-settings-row {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;
+  background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; flex-shrink:0;
+}
+.edit-settings-row label { font-size:11px; color:var(--text-dim); }
+.edit-settings-row input[type=number] {
+  width:52px; background:var(--surface); border:1px solid var(--border); border-radius:6px;
+  color:var(--text); padding:5px 6px; font-size:13px; text-align:center; outline:none;
+  font-family:'Outfit',sans-serif;
+}
+.edit-settings-row input[type=number]:focus { border-color:var(--gold); }
+.edit-apply-btn {
+  background:var(--gold); color:#111; border:none; border-radius:8px;
+  padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer;
+  font-family:'Outfit',sans-serif; transition:background .15s;
+}
+.edit-apply-btn:hover { background:#ffd54f; }
+.edit-stage {
+  position:relative; width:min(80vw, 560px); flex-shrink:0;
+  border-radius:10px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.8);
+  background:#111;
+}
+.edit-stage img { width:100%; height:100%; display:block; object-fit:fill; }
+.edit-grid-overlay { position:absolute; inset:0; display:grid; }
+.edit-slot-btn {
+  border:1px dashed rgba(245,200,66,.4); background:rgba(0,0,0,0);
+  cursor:pointer; transition:background .15s; position:relative; padding:0;
+}
+.edit-slot-btn:hover { background:rgba(245,200,66,.22); }
+.edit-slot-btn.drag-over { background:rgba(245,200,66,.35) !important; border-color:var(--gold) !important; }
+.edit-slot-btn.drag-src { opacity:0.35; }
+.edit-slot-btn .slot-num {
+  position:absolute; top:3px; left:4px; font-size:10px;
+  color:rgba(255,255,255,.7); background:rgba(0,0,0,.5); padding:0 4px; border-radius:3px;
+  pointer-events:none;
+}
 
 /* Watermark panel */
 .wm-panel {
@@ -279,7 +331,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 
 /* Type Chooser Popup */
 .type-popup {
-  position:fixed; z-index:1000; background:var(--surface2); border:1px solid var(--border);
+  position:fixed; z-index:3500; background:var(--surface2); border:1px solid var(--border);
   border-radius:12px; padding:10px; display:flex; gap:8px;
   box-shadow:0 8px 32px rgba(0,0,0,.6);
   animation: popIn 0.18s cubic-bezier(.34,1.56,.64,1);
@@ -293,11 +345,11 @@ main { flex: 1; display: flex; overflow: hidden; }
 }
 .type-popup-btn:hover { border-color:var(--gold); background:rgba(245,200,66,.1); color:var(--gold); }
 .type-popup-btn .icon { font-size:22px; }
-.popup-overlay { position:fixed; inset:0; z-index:999; }
+.popup-overlay { position:fixed; inset:0; z-index:3499; }
 
 /* Text Edit Modal */
 .modal-overlay {
-  position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.65);
+  position:fixed; inset:0; z-index:3600; background:rgba(0,0,0,.65);
   backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center;
 }
 .modal {
@@ -371,7 +423,7 @@ main { flex: 1; display: flex; overflow: hidden; }
     <circle cx="16" cy="16" r="4.5" fill="#f5c842"/>
     <circle cx="16" cy="16" r="2.5" fill="#0f0f13"/>
   </svg>
-  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v1.0</span></div>
+  <div class="logo">拼貼寶 <span>Pokémon Collage Maker · v2.0_Revision08/27</span></div>
   <button class="sidebar-toggle" onclick="toggleSidebar()" title="設定">☰</button>
 </header>
 
@@ -444,6 +496,7 @@ main { flex: 1; display: flex; overflow: hidden; }
     <div class="action-btns">
       <button class="btn btn-export" onclick="doExport()">⬇ 匯出拼貼圖 Export</button>
       <button class="btn btn-wmonly" onclick="document.getElementById('wm-only-input').click()">🏷 只加浮水印（上傳完成圖）</button>
+      <button class="btn btn-editmode" onclick="openEditMode()">✏️ 編輯完成拼貼圖（取代任一格）</button>
       <button class="btn btn-clear" onclick="clearAll()">🗑 清除全部 Clear All</button>
     </div>
   </aside>
@@ -455,7 +508,37 @@ main { flex: 1; display: flex; overflow: hidden; }
 
 <input type="file" id="file-input" accept="image/*" multiple>
 <input type="file" id="wm-only-input" accept="image/*" style="display:none">
+<input type="file" id="edit-base-input" accept="image/*" style="display:none">
+<input type="file" id="edit-slot-input" accept="image/*" style="display:none">
 <div class="toast" id="toast"></div>
+
+<!-- ── Edit Existing Collage Mode ── -->
+<div class="edit-overlay" id="edit-overlay" style="display:none">
+  <div class="edit-title">✏️ 編輯完成拼貼圖</div>
+
+  <div class="edit-settings-row">
+    <label>欄 Cols</label>
+    <input type="number" id="edit-cols" min="1" max="20" value="4">
+    <label>列 Rows</label>
+    <input type="number" id="edit-rows" min="1" max="20" value="2">
+    <label>間距 Gap</label>
+    <input type="number" id="edit-gap" min="0" max="100" value="0">
+    <button class="edit-apply-btn" onclick="applyEditGrid()">套用格線</button>
+  </div>
+
+  <div class="edit-stage" id="edit-stage">
+    <img id="edit-preview-img" src="" alt="編輯預覽">
+    <div class="edit-grid-overlay" id="edit-grid-overlay"></div>
+  </div>
+
+  <div class="export-tip">💡 點擊任一格即可上傳新照片，直接取代該位置（其他格子不受影響）</div>
+
+  <div class="export-actions">
+    <button class="exp-btn exp-btn-save" onclick="editExport()">⬇ 匯出目前結果</button>
+    <button class="exp-btn exp-btn-wm" onclick="editReset()">🔄 換一張底圖</button>
+    <button class="exp-btn exp-btn-close" onclick="closeEditMode()">✕ 關閉</button>
+  </div>
+</div>
 
 <!-- ── Export Preview ── -->
 <div class="export-overlay" id="export-overlay" style="display:none">
@@ -588,6 +671,8 @@ let dragSrc = null;
 let fmt = 'png';
 let ratioW = 9, ratioH = 20;
 let editIdx = null;
+let textModalMode = 'cell';   // 'cell' (main grid) | 'editSlot' (edit-existing-collage mode)
+let editSlotTextIdx = null;
 let curAlign = 'center';
 
 const isMobile = () => window.innerWidth <= 600;
@@ -676,9 +761,17 @@ function renderGrid() {
 
 // ── Cell Click → popup for empty, modal for text ──────
 function onCellClick(i, el) {
-  if (cells[i].type === 'image') return;
+  if (cells[i].type === 'image') { openReplaceUpload(i); return; }
   if (cells[i].type === 'text') { openModal(i); return; }
   showPopup(i, el);
+}
+
+// Replace an already-filled image cell: single-file picker, keeps other cells untouched
+function openReplaceUpload(i) {
+  activeCellIdx = i;
+  const input = document.getElementById('file-input');
+  input.removeAttribute('multiple');  // force single-file so we don't spill into next cells
+  input.click();
 }
 
 // ── Type Chooser Popup ────────────────────────────────
@@ -736,6 +829,7 @@ function buildPresets() {
 }
 
 function openModal(idx) {
+  textModalMode = 'cell';
   editIdx = idx;
   buildPresets();
   const c = cells[idx];
@@ -756,22 +850,27 @@ function openModal(idx) {
 function closeModal() {
   document.getElementById('text-modal').style.display = 'none';
   editIdx = null;
+  editSlotTextIdx = null;
 }
 function confirmText() {
+  const text     = document.getElementById('txt-input').value;
+  const fontSize = parseInt(document.getElementById('txt-size').value);
+  const color    = document.getElementById('txt-color').value;
+  const bgColor  = document.getElementById('bg-color').value;
+  const align    = curAlign;
+
+  if (textModalMode === 'editSlot') {
+    if (editSlotTextIdx === null) { closeModal(); return; }
+    drawTextIntoEditSlot(editSlotTextIdx, text, fontSize, color, align, bgColor);
+    closeModal();
+    return;
+  }
+
   if (editIdx === null) return;
-  const text = document.getElementById('txt-input').value;
   if (!text.trim()) {
     cells[editIdx] = emptyCell();
   } else {
-    cells[editIdx] = {
-      type: 'text',
-      img: null, src: null,
-      text,
-      fontSize: parseInt(document.getElementById('txt-size').value),
-      color:   document.getElementById('txt-color').value,
-      align:   curAlign,
-      bgColor: document.getElementById('bg-color').value,
-    };
+    cells[editIdx] = { type: 'text', img: null, src: null, text, fontSize, color, align, bgColor };
   }
   closeModal(); renderGrid(); updateInfo();
 }
@@ -813,7 +912,8 @@ function handleDrop(e, tgt) {
 }
 document.addEventListener('dragend', () => {
   dragSrc = null;
-  document.querySelectorAll('.cell').forEach(el => el.classList.remove('drag-src','drag-over'));
+  editDragSrc = null;
+  document.querySelectorAll('.cell, .edit-slot-btn').forEach(el => el.classList.remove('drag-src','drag-over'));
 });
 
 // ── File Input ────────────────────────────────────────
@@ -824,6 +924,7 @@ document.getElementById('file-input').addEventListener('change', function() {
   if (start < 0) start = 0;
   files.forEach((f,off) => { if(start+off<cells.length) loadFile(f,start+off); });
   this.value = ''; activeCellIdx = null;
+  this.setAttribute('multiple','multiple');  // restore multi-select for the normal empty-cell upload flow
 });
 function loadFile(file, idx) {
   const reader = new FileReader();
@@ -966,6 +1067,297 @@ document.getElementById('wm-only-input').addEventListener('change', function() {
   };
   reader.readAsDataURL(file);
 });
+
+// ── Edit Existing Collage Mode ─────────────────────────
+// Lets you upload an already-flattened N×M collage and replace any one slot
+// by re-slicing it with a virtual (cols × rows × gap) grid you specify.
+let editCanvas = null;    // full-resolution canvas holding current pixel state
+let editCols = 4, editRows = 2, editGap = 0;
+let editActiveSlot = null;
+let editDragSrc = null;
+
+function openEditMode() {
+  document.getElementById('edit-base-input').click();
+}
+
+document.getElementById('edit-base-input').addEventListener('change', function() {
+  const file = this.files[0];
+  this.value = '';
+  if (!file || !file.type.startsWith('image/')) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      editCanvas = document.createElement('canvas');
+      editCanvas.width  = img.naturalWidth;
+      editCanvas.height = img.naturalHeight;
+      editCanvas.getContext('2d').drawImage(img, 0, 0);
+
+      document.getElementById('edit-cols').value = editCols;
+      document.getElementById('edit-rows').value = editRows;
+      document.getElementById('edit-gap').value  = editGap;
+      applyEditGrid();
+      document.getElementById('edit-overlay').style.display = 'flex';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+function applyEditGrid() {
+  editCols = Math.max(1, Math.min(20, parseInt(document.getElementById('edit-cols').value) || 1));
+  editRows = Math.max(1, Math.min(20, parseInt(document.getElementById('edit-rows').value) || 1));
+  editGap  = Math.max(0, parseInt(document.getElementById('edit-gap').value) || 0);
+  document.getElementById('edit-cols').value = editCols;
+  document.getElementById('edit-rows').value = editRows;
+  document.getElementById('edit-gap').value  = editGap;
+  renderEditStage();
+}
+
+function renderEditStage() {
+  if (!editCanvas) return;
+  const W = editCanvas.width, H = editCanvas.height;
+
+  document.getElementById('edit-stage').style.aspectRatio = `${W} / ${H}`;
+  document.getElementById('edit-preview-img').src = editCanvas.toDataURL('image/png');
+
+  const grid = document.getElementById('edit-grid-overlay');
+  grid.style.gridTemplateColumns = `repeat(${editCols}, 1fr)`;
+  grid.style.gridTemplateRows    = `repeat(${editRows}, 1fr)`;
+  // percentage gap: row-gap relative to container height, column-gap relative to width
+  grid.style.gap = `${(editGap / H) * 100}% ${(editGap / W) * 100}%`;
+  grid.innerHTML = '';
+
+  for (let r = 0; r < editRows; r++) {
+    for (let c = 0; c < editCols; c++) {
+      const idx = r * editCols + c;
+      const btn = document.createElement('button');
+      btn.className = 'edit-slot-btn';
+      btn.innerHTML = `<span class="slot-num">${idx + 1}</span>`;
+      btn.draggable = true;
+      btn.onclick = () => showEditSlotPopup(idx, btn);
+      btn.addEventListener('dragstart', e => {
+        editDragSrc = idx;
+        setTimeout(() => btn.classList.add('drag-src'), 0);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      btn.addEventListener('dragover',  e => { e.preventDefault(); btn.classList.add('drag-over'); });
+      btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+      btn.addEventListener('drop', e => handleEditSlotDrop(e, idx));
+      grid.appendChild(btn);
+    }
+  }
+}
+
+// Drop target: swap with dragged slot, or accept a dropped image file to replace this slot
+function handleEditSlotDrop(e, targetIdx) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+
+  if (editDragSrc !== null && editDragSrc !== targetIdx) {
+    editSwapSlots(editDragSrc, targetIdx);
+    editDragSrc = null;
+    return;
+  }
+  editDragSrc = null;
+
+  const file = [...(e.dataTransfer.files || [])].find(f => f.type.startsWith('image/'));
+  if (!file) return;
+  editActiveSlot = targetIdx;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const { x, y, w, h } = editSlotRect(targetIdx);
+      const ctx = editCanvas.getContext('2d');
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const sc = Math.max(w / iw, h / ih);
+      ctx.drawImage(img, x + (w - iw * sc) / 2, y + (h - ih * sc) / 2, iw * sc, ih * sc);
+      ctx.restore();
+      document.getElementById('edit-preview-img').src = editCanvas.toDataURL('image/png');
+      showToast(`✓ 已取代第 ${targetIdx + 1} 格`);
+      editActiveSlot = null;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Swap the pixel content of two slots directly on the canvas
+function editSwapSlots(a, b) {
+  if (!editCanvas || a === b) return;
+  const rectA = editSlotRect(a);
+  const rectB = editSlotRect(b);
+  const ctx = editCanvas.getContext('2d');
+
+  const tmpA = document.createElement('canvas');
+  tmpA.width = rectA.w; tmpA.height = rectA.h;
+  tmpA.getContext('2d').drawImage(editCanvas, rectA.x, rectA.y, rectA.w, rectA.h, 0, 0, rectA.w, rectA.h);
+
+  const tmpB = document.createElement('canvas');
+  tmpB.width = rectB.w; tmpB.height = rectB.h;
+  tmpB.getContext('2d').drawImage(editCanvas, rectB.x, rectB.y, rectB.w, rectB.h, 0, 0, rectB.w, rectB.h);
+
+  ctx.drawImage(tmpB, 0, 0, rectB.w, rectB.h, rectA.x, rectA.y, rectA.w, rectA.h);
+  ctx.drawImage(tmpA, 0, 0, rectA.w, rectA.h, rectB.x, rectB.y, rectB.w, rectB.h);
+
+  document.getElementById('edit-preview-img').src = editCanvas.toDataURL('image/png');
+  showToast(`↔ 已交換第 ${a + 1} 格與第 ${b + 1} 格`);
+}
+
+// Compute a slot's pixel rect (x, y, w, h) inside the full-res editCanvas
+function editSlotRect(idx) {
+  const W = editCanvas.width, H = editCanvas.height;
+  const cellW = (W - (editCols - 1) * editGap) / editCols;
+  const cellH = (H - (editRows - 1) * editGap) / editRows;
+  const col = idx % editCols;
+  const row = Math.floor(idx / editCols);
+  return { x: col * (cellW + editGap), y: row * (cellH + editGap), w: cellW, h: cellH };
+}
+
+// ── Type Chooser Popup for edit-mode slots (圖片／文字／留白) ──
+function showEditSlotPopup(idx, cellEl) {
+  closePopup();
+  const ov = document.createElement('div');
+  ov.className = 'popup-overlay'; ov.id = 'popup-ov'; ov.onclick = closePopup;
+  const pop = document.createElement('div');
+  pop.className = 'type-popup'; pop.id = 'type-pop';
+
+  const mkBtn = (icon, label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'type-popup-btn';
+    b.innerHTML = `<span class="icon">${icon}</span>${label}`;
+    b.onclick = e => { e.stopPropagation(); closePopup(); fn(); };
+    return b;
+  };
+  pop.appendChild(mkBtn('🖼','上傳圖片', () => { editActiveSlot = idx; document.getElementById('edit-slot-input').click(); }));
+  pop.appendChild(mkBtn('✏️','輸入文字', () => openEditTextModal(idx)));
+  pop.appendChild(mkBtn('⬜','留　　白', () => editClearSlot(idx)));
+
+  document.body.appendChild(ov);
+  document.body.appendChild(pop);
+
+  const r = cellEl.getBoundingClientRect();
+  const pw = pop.offsetWidth || 230;
+  const ph = pop.offsetHeight || 90;
+  let left = r.left + r.width/2 - pw/2;
+  let top  = r.bottom + 6;
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+  if (top + ph > window.innerHeight - 8) top = r.top - ph - 6;
+  pop.style.left = left+'px'; pop.style.top = top+'px';
+}
+
+// 留白：直接把該格填白，蓋掉原本內容
+function editClearSlot(idx) {
+  if (!editCanvas) return;
+  const { x, y, w, h } = editSlotRect(idx);
+  const ctx = editCanvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(x, y, w, h);
+  document.getElementById('edit-preview-img').src = editCanvas.toDataURL('image/png');
+  showToast(`⬜ 第 ${idx + 1} 格已留白`);
+}
+
+// 文字：開啟共用的文字設定視窗，走 editSlot 模式
+function openEditTextModal(idx) {
+  textModalMode = 'editSlot';
+  editSlotTextIdx = idx;
+  buildPresets();
+  document.getElementById('txt-input').value = '';
+  document.getElementById('txt-size').value = 36;
+  curAlign = 'center';
+  document.getElementById('txt-color').value = '#000000';
+  document.getElementById('bg-color').value  = '#ffffff';
+  document.querySelectorAll('.align-btn').forEach(b => b.classList.toggle('active', b.dataset.align === 'center'));
+  syncPreview();
+  document.getElementById('text-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('txt-input').focus(), 60);
+}
+
+// 把文字畫進 editCanvas 指定格
+function drawTextIntoEditSlot(idx, text, fontSize, color, align, bgColor) {
+  if (!editCanvas) return;
+  const { x, y, w, h } = editSlotRect(idx);
+  const ctx = editCanvas.getContext('2d');
+
+  ctx.fillStyle = bgColor || '#ffffff';
+  ctx.fillRect(x, y, w, h);
+
+  const trimmed = (text || '').trim();
+  if (trimmed) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.fillStyle = color;
+    ctx.font = `${fontSize}px 'Times New Roman','標楷體','DFKai-SB',serif`;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+    const pad = Math.round(w * 0.06);
+    const maxW = w - pad * 2;
+    const lineH = fontSize * 1.45;
+    const lines = wrapText(ctx, trimmed, maxW);
+    const startY = y + (h - lines.length * lineH) / 2 + lineH / 2;
+    const tx = align === 'left' ? x + pad : align === 'right' ? x + w - pad : x + w / 2;
+    lines.forEach((ln, li) => ctx.fillText(ln, tx, startY + li * lineH));
+    ctx.restore();
+  }
+
+  document.getElementById('edit-preview-img').src = editCanvas.toDataURL('image/png');
+  showToast(`✓ 第 ${idx + 1} 格已更新文字`);
+}
+
+document.getElementById('edit-slot-input').addEventListener('change', function() {
+  const file = this.files[0];
+  this.value = '';
+  if (!file || !file.type.startsWith('image/') || editActiveSlot === null || !editCanvas) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const W = editCanvas.width, H = editCanvas.height;
+      const cellW = (W - (editCols - 1) * editGap) / editCols;
+      const cellH = (H - (editRows - 1) * editGap) / editRows;
+      const col = editActiveSlot % editCols;
+      const row = Math.floor(editActiveSlot / editCols);
+      const x = col * (cellW + editGap);
+      const y = row * (cellH + editGap);
+
+      const ctx = editCanvas.getContext('2d');
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, cellW, cellH); ctx.clip();
+      // cover-crop fill, same behaviour as the main grid tool
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const sc = Math.max(cellW / iw, cellH / ih);
+      ctx.drawImage(img, x + (cellW - iw * sc) / 2, y + (cellH - ih * sc) / 2, iw * sc, ih * sc);
+      ctx.restore();
+
+      document.getElementById('edit-preview-img').src = editCanvas.toDataURL('image/png');
+      showToast(`✓ 已取代第 ${editActiveSlot + 1} 格`);
+      editActiveSlot = null;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+function editExport() {
+  if (!editCanvas) return;
+  showExportPreview(editCanvas.toDataURL('image/png'), 'edited_collage.png');
+}
+
+function editReset() {
+  editCanvas = null;
+  editActiveSlot = null;
+  document.getElementById('edit-preview-img').src = '';
+  document.getElementById('edit-grid-overlay').innerHTML = '';
+  document.getElementById('edit-base-input').click();
+}
+
+function closeEditMode() {
+  document.getElementById('edit-overlay').style.display = 'none';
+}
 
 function closeExportPreview() {
   document.getElementById('export-overlay').style.display = 'none';
